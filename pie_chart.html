@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Team Category Participation Pie Chart</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+    :root {
+        --primary: #4facfe;
+        --secondary: #00f2fe;
+        --background: #0a0a1f;
+        --surface: rgba(255, 255, 255, 0.05);
+        --text: #e5e5e5;
+    }
+
+    body {
+        background: radial-gradient(circle at top right, var(--background), #000510);
+        color: var(--text);
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        margin: 0;
+        padding: 2rem;
+        min-height: 100vh;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    h1 {
+        text-align: center;
+        font-size: 2.5rem;
+        margin-bottom: 2rem;
+        color: var(--primary);
+        text-shadow: none;
+    }
+
+    .chart-container {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        padding: 2rem;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+        border-radius: 24px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        position: relative;
+        overflow: hidden;
+    }
+
+    #tooltip {
+        position: absolute;
+        padding: 1rem 1.5rem;
+        font-size: 0.9rem;
+        background: rgba(10, 10, 31, 0.95);
+        color: var(--text);
+        border-radius: 12px;
+        pointer-events: none;
+        opacity: 0;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4),
+                    0 0 0 1px rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        transform: translateY(10px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #tooltip.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    #tooltip strong {
+        color: var(--primary);
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .legend-container {
+        width: 350px;
+        padding: 1.5rem;
+        background: var(--surface);
+        border-radius: 15px;
+    }
+
+    .legend {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        padding: 0.7rem;
+        border-radius: 8px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .legend-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .legend-color {
+        width: 24px;
+        height: 24px;
+        margin-right: 12px;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+    }
+
+    .legend-item:hover .legend-color {
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .pie-chart { 
+        width: 100%; 
+        height: 500px;
+    }
+</style>
+</head>
+<body>
+<h1>Team Category Participation Pie Chart (2015-2024)</h1>
+
+<div class="chart-container">
+    <div id="pie-chart" class="chart"></div>
+    <div id="pie-chart-legend" class="legend-container"></div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+d3.csv('from2015.csv').then(rawData => {
+    // Remove years 2016 and 2017 from data
+    rawData = rawData.filter(d => d.Year !== 2016 && d.Year !== 2017);
+    
+    // Aggregate total counts
+    const categoryTotals = d3.rollup(rawData, v => v.length, d => d.Category);
+    const pieData = Array.from(categoryTotals, ([category, count]) => ({ category, count }));
+    
+    // Pie Chart
+    const pieSvg = d3.select("#pie-chart")
+        .append("svg")
+        .attr("width", 900)
+        .attr("height", 600)
+        .append("g")
+        .attr("transform", "translate(400,250)");
+    
+    const pie = d3.pie().value(d => d.count);
+    const arc = d3.arc().innerRadius(0).outerRadius(250);
+    
+    const pieColor = d3.scaleOrdinal(d3.schemeCategory10);
+    
+    const slices = pieSvg.selectAll("path")
+        .data(pie(pieData))
+        .enter()
+        .append("path")
+        .attr("d", arc)
+        .attr("fill", d => pieColor(d.data.category))
+        .attr("stroke", "white")
+        .style("stroke-width", "2px")
+        .style("opacity", 0.8)
+        .on("mouseover", (event, d) => {
+            d3.select(event.currentTarget).style("opacity", 1).style("filter", "brightness(1.2)");
+            d3.select("#tooltip")
+                .classed("visible", true)
+                .html(`<strong>Category:</strong> ${d.data.category} <br> <strong>Count:</strong> ${d.data.count}`)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 10) + "px");
+        })
+        .on("mousemove", (event) => {
+            d3.select("#tooltip")
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 10) + "px");
+        })
+        .on("mouseleave", (event) => {
+            d3.select(event.currentTarget).style("opacity", 0.8).style("filter", "none");
+            d3.select("#tooltip").classed("visible", false);
+        });
+    
+    // Pie Chart Legend
+    const pieLegend = d3.select("#pie-chart-legend")
+        .append("div")
+        .attr("class", "legend");
+    pieData.forEach(d => {
+        const legendItem = pieLegend.append("div")
+            .attr("class", "legend-item");
+        
+        legendItem.append("div")
+            .attr("class", "legend-color")
+            .style("background-color", pieColor(d.category));
+        
+        legendItem.append("div")
+            .text(`${d.category} (${d.count})`);
+    });
+});
+</script>
+</body>
+</html>

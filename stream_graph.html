@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Team Category Participation Stream Graph</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+    :root {
+        --primary: #4facfe;
+        --secondary: #00f2fe;
+        --background: #0a0a1f;
+        --surface: rgba(255, 255, 255, 0.05);
+        --text: #e5e5e5;
+    }
+
+    body {
+        background: radial-gradient(circle at top right, var(--background), #000510);
+        color: var(--text);
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        margin: 0;
+        padding: 2rem;
+        min-height: 100vh;
+        overflow-x: hidden;
+    }
+
+    h1 {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 2rem;
+    color: var(--primary); /* Use a solid text color */
+    text-shadow: none; /* Remove glow effect */
+    background: none; /* Remove gradient */
+    --webkit-background-clip: unset;
+    --webkit-text-fill-color: unset;
+    animation: none; /* Disable glow animation */
+}
+
+
+    @keyframes glow {
+        from { text-shadow: 0 0 20px rgba(79, 172, 254, 0.4); }
+        to { text-shadow: 0 0 30px rgba(79, 172, 254, 0.7); }
+    }
+
+    .chart-container {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        padding: 2rem;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+        border-radius: 24px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        position: relative;
+        overflow: hidden;
+    }
+
+    @keyframes streamAppear {
+        0% { 
+            opacity: 0; 
+            transform: scaleY(0) translateY(50%);
+        }
+        100% { 
+            opacity: 0.7; 
+            transform: scaleY(1) translateY(0);
+        }
+    }
+
+    .graph-path {
+        transform-origin: bottom;
+        animation: streamAppear 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        opacity: 0;
+    }
+
+    .graph-path:nth-child(1) { animation-delay: 0.2s; }
+    .graph-path:nth-child(2) { animation-delay: 0.4s; }
+    .graph-path:nth-child(3) { animation-delay: 0.6s; }
+    .graph-path:nth-child(4) { animation-delay: 0.8s; }
+    .graph-path:nth-child(5) { animation-delay: 1s; }
+    .graph-path:nth-child(6) { animation-delay: 1.2s; }
+
+    /* Rest of the previous CSS remains the same */
+    .chart-container::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(79, 172, 254, 0.1), transparent 70%);
+        opacity: 0;
+        transition: opacity 0.3s;
+        pointer-events: none;
+        animation: rotate 20s linear infinite;
+    }
+
+    .chart-container:hover::before {
+        opacity: 1;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    #tooltip {
+        position: absolute;
+        padding: 1rem 1.5rem;
+        font-size: 0.9rem;
+        background: rgba(10, 10, 31, 0.95);
+        color: var(--text);
+        border-radius: 12px;
+        pointer-events: none;
+        opacity: 0;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4),
+                    0 0 0 1px rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        transform: translateY(10px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #tooltip.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    #tooltip strong {
+        color: var(--primary);
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .legend-container {
+        width: 250px;
+        margin-left: 20px;
+        padding: 1.5rem;
+        background: var(--surface);
+        border-radius: 15px;
+    }
+
+    .legend {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        padding: 0.7rem;
+        border-radius: 8px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .legend-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .legend-color {
+        width: 24px;
+        height: 24px;
+        margin-right: 12px;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+    }
+
+    .legend-item:hover .legend-color {
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .stream-graph { 
+        width: 100%; 
+        height: 500px;
+    }
+
+    .graph-path:hover {
+        opacity: 1 !important;
+        filter: brightness(1.2);
+    }
+</style>
+</head>
+<body>
+<h1>Team Category Participation Stream Graph</h1>
+
+<div class="chart-container">
+    <div id="stream-graph" class="chart"></div>
+    <div id="stream-graph-legend" class="legend-container"></div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+d3.csv('from2015.csv').then(rawData => {
+    // Convert necessary fields to numbers
+    rawData.forEach(d => {
+        d.Year = +d.Year; // Convert Year to a number
+    });
+    // Remove years 2016 and 2017 from data
+    rawData = rawData.filter(d => d.Year !== 2016 && d.Year !== 2017);
+    // Group by Year and Category
+    let categoryCounts = {};
+    rawData.forEach(d => {
+        if (!categoryCounts[d.Year]) categoryCounts[d.Year] = {};
+        if (!categoryCounts[d.Year][d.Category]) categoryCounts[d.Year][d.Category] = 0;
+        categoryCounts[d.Year][d.Category] += 1;
+    });
+    // Convert into array format for D3 stacking
+    let years = Array.from(new Set(rawData.map(d => d.Year))).sort((a, b) => a - b);
+    let categories = Array.from(new Set(rawData.map(d => d.Category)));
+    let categoryData = years.map(year => {
+        let entry = { year };
+        categories.forEach(cat => {
+            entry[cat] = categoryCounts[year][cat] || 0;
+        });
+        return entry;
+    });
+    
+    // Stream Graph
+    const streamMargin = { top: 50, right: 50, bottom: 50, left: 50 };
+    const streamWidth = 800 - streamMargin.left - streamMargin.right;
+    const streamHeight = 500 - streamMargin.top - streamMargin.bottom;
+    const streamSvg = d3.select("#stream-graph")
+        .append("svg")
+        .attr("width", streamWidth + streamMargin.left + streamMargin.right)
+        .attr("height", streamHeight + streamMargin.top + streamMargin.bottom)
+        .append("g")
+        .attr("transform", `translate(${streamMargin.left},${streamMargin.top})`);
+    
+    // Use a point scale to skip years 2016 & 2017
+    const streamX = d3.scalePoint()
+        .domain(years)
+        .range([0, streamWidth])
+        .padding(0.5);
+    
+    // Stack data
+    const stack = d3.stack().keys(categories).offset(d3.stackOffsetWiggle);
+    const streamLayers = stack(categoryData);
+    
+    // Y Scale
+    const streamY = d3.scaleLinear()
+        .domain([
+            d3.min(streamLayers, layer => d3.min(layer, d => d[0])),
+            d3.max(streamLayers, layer => d3.max(layer, d => d[1]))
+        ])
+        .range([streamHeight, 0]);
+    
+    const streamColor = d3.scaleOrdinal(d3.schemeCategory10);
+    
+    // Area Generator
+    const area = d3.area()
+        .x(d => streamX(d.data.year))
+        .y0(d => streamY(d[0]))
+        .y1(d => streamY(d[1]));
+    
+        streamSvg.selectAll("path")
+    .data(streamLayers)
+    .enter().append("path")
+    .attr("d", area)
+    .attr("fill", (d, i) => streamColor(categories[i]))
+    .attr("opacity", 0.7)
+    .attr("class", "graph-path")
+    .each(function(d, i) { d.category = categories[i]; }) // Attach category name
+    .on("mouseover", function(event, d) {
+        d3.select("#tooltip")
+            .classed("visible", true)
+            .html(`<strong>Category:</strong> ${d.category}`)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 10) + "px");
+    })
+    .on("mousemove", (event) => {
+        d3.select("#tooltip")
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 10) + "px");
+    })
+    .on("mouseleave", () => {
+        d3.select("#tooltip").classed("visible", false);
+    });
+
+    
+    // X Axis
+    streamSvg.append("g")
+        .attr("transform", `translate(0,${streamHeight})`)
+        .call(d3.axisBottom(streamX));
+    
+    // Stream Graph Legend
+    const streamLegend = d3.select("#stream-graph-legend")
+        .append("div")
+        .attr("class", "legend");
+    categories.forEach((category, i) => {
+        const legendItem = streamLegend.append("div")
+            .attr("class", "legend-item");
+        
+        legendItem.append("div")
+            .attr("class", "legend-color")
+            .style("background-color", streamColor(category));
+        
+        legendItem.append("div")
+            .text(category);
+    });
+});
+</script>
+</body>
+</html>

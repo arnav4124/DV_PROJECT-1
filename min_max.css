@@ -1,0 +1,169 @@
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 0;
+    min-height: 100vh;
+    background: linear-gradient(135deg, 
+        rgba(29, 135, 141, 0.8) 0%,
+        rgba(92, 140, 192, 0.8) 100%
+    );
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+}
+
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+h1 {
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    margin: 30px 0;
+    font-size: 2.5em;
+    opacity: 0;
+    animation: fadeIn 1s ease-out forwards;
+}
+
+/* Trophy icon styling */
+.fa-trophy {
+    color: gold;
+    margin: 0 15px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    animation: trophyShine 2s infinite;
+}
+
+@keyframes trophyShine {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.chart-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 500px;
+    perspective: 1000px;
+    margin-top: 5px;
+}
+
+svg {
+    width: 900px;
+    height: 500px;
+    margin-top: 500px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    scale: 1.5;
+    opacity: 0;
+    transform: translateY(50px) rotateX(-10deg);
+    animation: chartAppear 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    animation-delay: 0.5s;
+}
+
+/* Axis styling */
+.axis-label {
+    font-size: 16px !important;  /* Increased font size */
+    font-weight: bold;
+    fill: #333;
+    opacity: 1 !important;  /* Ensure visibility */
+}
+
+.axis path,
+.axis line {
+    stroke: #333;
+    stroke-width: 1.5px;
+}
+
+.axis text {
+    font-size: 12px;
+    fill: #333;
+}
+
+/* Other animations and styles remain the same */
+.legend {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin: 20px 0;
+    opacity: 0;
+    animation: fadeIn 1s ease-out forwards;
+    animation-delay: 0.7s;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: white;
+    font-size: 14px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.legend-color {
+    display: inline-block;
+    width: 20px;
+    height: 3px;
+    border-radius: 2px;
+}
+
+.min-color { background: #007bff; }
+.max-color { background: #dc3545; }
+.avg-color { background: #28a745; }
+
+.line {
+    fill: none;
+    stroke-width: 2.5px;
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    
+}
+
+.min-line { stroke: #007bff; }
+.max-line { stroke: #dc3545; }
+.avg-line { stroke: #28a745; }
+
+.tooltip {
+    position: absolute;
+    background: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    pointer-events: none;
+    opacity: 0;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    z-index: 1000;
+}
+
+/* Animation keyframes remain the same */
+@keyframes chartAppear {
+    0% {
+        opacity: 0;
+        transform: translateY(50px) rotateX(-10deg);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) rotateX(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes drawLine {
+    to {
+        stroke-dashoffset: 0;
+    }
+}

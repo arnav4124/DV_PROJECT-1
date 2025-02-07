@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Year-wise Scatter Plot Comparison</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="bed_no.css">
+</head>
+<body>
+
+    <h1>Compare Bed Number vs Position Across Years</h1>
+
+    <!-- Dropdowns for selecting years -->
+    <div class="dropdown-container">
+        <label for="yearSelect1"><h3>Select Year for Left Plot:</h3></label>
+        <select id="yearSelect1" ></select>
+
+        <label for="yearSelect2"><h3>Select Year for Right Plot:</h3></label>
+        <select id="yearSelect2" ></select>
+    </div>
+
+    <!-- Two SVG containers for scatter plots -->
+    <div class="chart-container">
+        <svg id="chart1"></svg>
+        <svg id="chart2"></svg>
+    </div>
+
+    <script src="bed_no.js"></script>
+
+</body>
+</html>

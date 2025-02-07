@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chord Graph - Category vs Standings</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <style>
+        :root {
+            --primary: #4facfe;
+            --secondary: #00f2fe;
+            --background: #0a0a1f;
+            --surface: rgba(255, 255, 255, 0.05);
+            --text: #e5e5e5;
+        }
+
+        body {
+            background: radial-gradient(circle at top right, var(--background), #000510);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            background: linear-gradient(45deg, var(--secondary), var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(79, 172, 254, 0.4);
+            animation: glow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 20px rgba(79, 172, 254, 0.4); }
+            to { text-shadow: 0 0 30px rgba(79, 172, 254, 0.7); }
+        }
+
+        .container {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+            border-radius: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(79, 172, 254, 0.1), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            animation: rotate 20s linear infinite;
+        }
+
+        .container:hover::before {
+            opacity: 1;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .chord path {
+            fill-opacity: .67;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
+        }
+
+        .chord path:hover {
+            fill-opacity: 1;
+            filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.4));
+            transform: scale(1.02);
+        }
+
+        .arc {
+            fill: #4a4a6a;
+            stroke: var(--background);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .arc:hover {
+            fill: #6a6a8a;
+            filter: brightness(1.3) contrast(1.1);
+            transform: scale(1.01);
+        }
+
+        .tooltip {
+            position: absolute;
+            padding: 1rem 1.5rem;
+            font-size: 0.9rem;
+            background: rgba(10, 10, 31, 0.95);
+            color: var(--text);
+            border-radius: 12px;
+            pointer-events: none;
+            opacity: 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4),
+                        0 0 0 1px rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transform: translateY(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .tooltip strong {
+            color: var(--primary);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .legend {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            padding: 1.5rem;
+            background: var(--surface);
+            border-radius: 15px;
+            margin-top: 2rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            padding: 0.7rem;
+            border-radius: 8px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .legend-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            margin-right: 12px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .legend-item:hover .legend-color {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        text {
+            fill: var(--text);
+            font-size: 12px;
+            font-weight: 500;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <h2>Category vs Standings</h2>
+    <div class="container">
+        <div id="chart"></div>
+    </div>
+    <div id="legend" class="legend"></div>
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        d3.csv("correct_output.csv").then(data => {
+            const categories = [...new Set(data.map(d => d.Category))];
+            const positions = ['1-30', '30-60', '60-90'];
+
+            const categoryIndex = {};
+            categories.forEach((cat, i) => categoryIndex[cat] = i);
+            const positionIndex = {};
+            positions.forEach((pos, i) => positionIndex[pos] = i);
+
+            const matrix = Array(categories.length + positions.length).fill().map(() => Array(categories.length + positions.length).fill(0));
+
+            data.forEach(d => {
+                const categoryIdx = categoryIndex[d.Category];
+                const positionIdx = d.Position <= 30 ? 0 : d.Position <= 60 ? 1 : 2;
+                matrix[categoryIdx][categories.length + positionIdx]++;
+                matrix[categories.length + positionIdx][categoryIdx]++;
+            });
+
+            const width = 600, height = 500;
+            const outerRadius = Math.min(width, height) * 0.4;
+            const innerRadius = outerRadius - 24;
+
+            const chord = d3.chord()
+                .padAngle(0.05)
+                .sortSubgroups(d3.descending);
+
+            const arc = d3.arc()
+                .innerRadius(innerRadius)
+                .outerRadius(outerRadius);
+
+            const ribbon = d3.ribbon()
+                .radius(innerRadius);
+
+            const svg = d3.select("#chart").append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .append("g")
+                .attr("transform", `translate(${width / 2},${height / 2})`);
+
+            const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+            const chords = chord(matrix);
+
+            const categoryArcs = svg.append("g")
+                .selectAll("g")
+                .data(chords.groups)
+                .enter().append("g");
+
+                categoryArcs.append("path")
+                .attr("class", "arc")
+                .attr("d", arc)
+                .style("fill", (d, i) => color(i))
+                .on("mouseover", function(event, d) {
+                    const index = d.index;
+                    const name = index < categories.length ? categories[index] : positions[index - categories.length];
+                    const connections = matrix[d.index].reduce((sum, val) => sum + val, 0);
+                    
+                    d3.select("#tooltip")
+                        .html(`
+                            <strong>${name}</strong>
+                            Total Connections: ${connections}<br>
+                            Value: ${matrix[d.index].join(', ')}
+                        `)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 10) + "px")
+                        .classed("visible", true);
+                })
+                .on("mouseout", function() {
+                    d3.select("#tooltip").classed("visible", false);
+                });
+
+            categoryArcs.append("text")
+                .each(function(d) { d.angle = (d.startAngle + d.endAngle) / 2; })
+                .attr("dy", ".35em")
+                .attr("transform", function(d) {
+                    return `rotate(${d.angle * 180 / Math.PI - 90}) translate(${outerRadius + 10}) ${d.angle > Math.PI ? "rotate(180)" : ""}`;
+                })
+                .attr("text-anchor", function(d) { return d.angle > Math.PI ? "end" : null; })
+                .text(function(d, i) { return i < categories.length ? categories[i] : positions[i - categories.length]; })
+                .style("font-size", "12px")
+                .style("fill", "#e5e5e5");
+
+            svg.append("g")
+                .selectAll("path")
+                .data(chords)
+                .enter().append("path")
+                .attr("d", ribbon)
+                .style("fill", d => color(d.target.index))
+                .style("opacity", 0.67)
+                .on("mouseover", function(event, d) {
+                const sourceIndex = d.source.index;
+                const targetIndex = d.target.index;
+                const sourceName = sourceIndex < categories.length ? categories[sourceIndex] : positions[sourceIndex - categories.length];
+                const targetName = targetIndex < categories.length ? categories[targetIndex] : positions[targetIndex - categories.length];
+                const value = matrix[d.source.index][d.target.index];
+                
+                d3.select(this)
+                    .style("opacity", 1)
+                    .style("filter", "brightness(1.2)");
+                
+                d3.select("#tooltip")
+                    .html(`
+                        <strong>Connection Details</strong>
+                        From: ${sourceName}<br>
+                        To: ${targetName}<br>
+                        Value: ${value}
+                    `)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 10) + "px")
+                    .classed("visible", true);
+            })
+                .on("mouseout", function() {
+                    d3.select(this)
+                        .style("opacity", 0.67)
+                        .style("filter", "none");
+                    d3.select("#tooltip").classed("visible", false);
+                });
+
+            const legend = d3.select("#legend");
+            const allItems = [...categories, ...positions];
+            
+            allItems.forEach((item, i) => {
+                const legendItem = legend.append("div")
+                    .attr("class", "legend-item");
+                
+                legendItem.append("div")
+                    .attr("class", "legend-color")
+                    .style("background-color", color(i));
+                
+                legendItem.append("span")
+                    .text(item);
+            });
+
+        }).catch(error => {
+            console.error('Error loading the CSV file:', error);
+        });
+    </script>
+</body>
+</html>

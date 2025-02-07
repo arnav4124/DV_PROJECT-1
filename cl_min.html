@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Race Time Trends</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Add Font Awesome for the trophy icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #5ca0b9 0%, #1d8094 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            color: white;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .trophy-icon {
+            color: #FFD700; /* Gold color for the trophy */
+            font-size: 2rem;
+            margin: 0 10px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-20px);
+            }
+            60% {
+                transform: translateY(-10px);
+            }
+        }
+
+        #chart {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 80px;
+        }
+
+        .line {
+            fill: none;
+            stroke-width: 3px;
+        }
+
+        .min-line { stroke: #4CAF50; }
+        .max-line { stroke: #FF5722; }
+        .avg-line { stroke: #2196F3; }
+
+        .dot {
+            transition: all 0.3s ease;
+        }
+
+        .dot:hover {
+            r: 8;
+            fill-opacity: 0.7;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: #999;
+            shape-rendering: crispEdges;
+        }
+
+        .axis text {
+            font-size: 12px;
+        }
+
+        /* Style for the legend */
+        .legend {
+            font-size: 14px;
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .legend-item {
+            margin-right: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .legend-color-box {
+            width: 20px;
+            height: 20px;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>
+        <i class="fas fa-trophy trophy-icon"></i> Race Completion Time Trends (2003 - 2024) <i class="fas fa-trophy trophy-icon"></i>
+    </h1>
+    <div id="chart"></div>
+    <div id="tooltip" class="tooltip"></div>
+
+    <!-- Legend Section -->
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color-box" style="background-color: #4CAF50;"></div>
+            <span>Min Time</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color-box" style="background-color: #FF5722;"></div>
+            <span>Max Time</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color-box" style="background-color: #2196F3;"></div>
+            <span>Avg Time</span>
+        </div>
+    </div>
+
+    <script>
+        // Set dimensions and margins
+        const margin = {top: 50, right: 50, bottom: 50, left: 80};
+        const width = 1200 - margin.left - margin.right;
+        const height = 700 - margin.top - margin.bottom;
+
+        // Create SVG
+        const svg = d3.select("#chart")
+            .append("svg")
+            .attr("width", width + margin.left + margin.right+90)
+            .attr("height", height + margin.top + margin.bottom+30)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        // Tooltip
+        const tooltip = d3.select("#tooltip");
+
+        // Load data
+        d3.csv("year_time.csv").then(data => {
+            // Custom function to convert time string to seconds
+            const timeToSeconds = (timeStr) => {
+                const [minutes, seconds] = timeStr.split(':').map(parseFloat);
+                return minutes * 60 + seconds;
+            };
+
+            // Convert data types
+            data.forEach(d => {
+                d.Year = +d.Year;
+                d.Time = timeToSeconds(d.Time);
+            });
+
+            // Group data by year
+            const yearGroups = d3.groups(data, d => d.Year);
+            const yearData = yearGroups.map(([year, values]) => ({
+                year,
+                min: d3.min(values, d => d.Time),
+                max: d3.max(values, d => d.Time),
+                avg: d3.mean(values, d => d.Time)
+            }));
+
+            // Scales
+            const xScale = d3.scaleLinear()
+                .domain(d3.extent(yearData, d => d.year))
+                .range([0, width]);
+
+            const yScale = d3.scaleLinear()
+                .domain([ 
+                    d3.min(yearData, d => Math.min(d.min, d.avg)) * 0.9,
+                    d3.max(yearData, d => Math.max(d.max, d.avg)) * 1.1
+                ])
+                .range([height, 0]);
+
+            // Formatting function to convert seconds back to MM:SS.S
+            const formatTime = (seconds) => {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = (seconds % 60).toFixed(1);
+                return `${minutes}:${remainingSeconds.padStart(4, '0')}`;
+            };
+
+            // Line generators
+            const lineMin = d3.line()
+                .x(d => xScale(d.year))
+                .y(d => yScale(d.min));
+
+            const lineMax = d3.line()
+                .x(d => xScale(d.year))
+                .y(d => yScale(d.max));
+
+            const lineAvg = d3.line()
+                .x(d => xScale(d.year))
+                .y(d => yScale(d.avg));
+
+            // Draw lines with animation
+            const drawLine = (lineGenerator, className) => {
+                return svg.append("path")
+                    .datum(yearData)
+                    .attr("class", `line ${className}`)
+                    .attr("d", lineGenerator)
+                    .attr("stroke-dasharray", function() { 
+                        return this.getTotalLength(); 
+                    })
+                    .attr("stroke-dashoffset", function() { 
+                        return this.getTotalLength(); 
+                    })
+                    .transition()
+                    .duration(2000)
+                    .ease(d3.easeLinear)
+                    .attr("stroke-dashoffset", 0);
+            };
+
+            drawLine(lineMin, "min-line");
+            drawLine(lineMax, "max-line");
+            drawLine(lineAvg, "avg-line");
+
+            // Axes
+            svg.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale).tickFormat(d3.format("d")));
+
+            svg.append("g")
+                .call(d3.axisLeft(yScale).tickFormat(formatTime));
+
+            // Dots with tooltip
+            const addDots = (data, className, color) => {
+                svg.selectAll(`.dot-${className}`)
+                    .data(yearData)
+                    .enter()
+                    .append("circle")
+                    .attr("class", `dot dot-${className}`)
+                    .attr("cx", d => xScale(d.year))
+                    .attr("cy", d => yScale(data === 'min' ? d.min : (data === 'max' ? d.max : d.avg)))
+                    .attr("r", 5)
+                    .attr("fill", color)
+                    .on("mouseover", (event, d) => {
+                        const value = data === 'min' ? d.min : (data === 'max' ? d.max : d.avg);
+                        tooltip.transition().duration(200).style("opacity", .9);
+                        tooltip.html(`Year: ${d.year}<br>Time: ${formatTime(value)}`)
+                            .style("left", `${event.pageX + 5}px`)
+                            .style("top", `${event.pageY - 28}px`);
+                    })
+                    .on("mouseout", () => {
+                        tooltip.transition().duration(500).style("opacity", 0);
+                    });
+            };
+
+            addDots('min', 'min', '#4CAF50');
+            addDots('max', 'max', '#FF5722');
+            addDots('avg', 'avg', '#2196F3');
+        });
+    </script>
+</body>
+</html>
