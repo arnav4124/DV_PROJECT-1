@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Team Performance Visualization</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --accent-blue: #2196F3;
+            --accent-pink: #E91E63;
+            --accent-green: #4CAF50;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+            overflow-x: hidden;
+        }
+
+        .container {
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 15px 25px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            width: 90%;
+            max-width: 1000px;
+            animation: fadeInUp 0.8s ease forwards;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .dropdown-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .dropdown {
+            width: 200px;
+            appearance: none;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 2px solid var(--text-secondary);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-image: linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%),
+                              linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%);
+            background-position: calc(100% - 20px) calc(1em + 2px),
+                                 calc(100% - 15px) calc(1em + 2px);
+            background-size: 5px 5px,
+                             5px 5px;
+            background-repeat: no-repeat;
+            margin-left: 1rem;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        .dropdown:hover {
+            transform: scale(1.05);
+            border-color: var(--accent-blue);
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+            color: var(--bg-primary);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            pointer-events: none;
+            opacity: 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: opacity 0.3s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes drawLine {
+            from {
+                stroke-dashoffset: 1000;
+            }
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        .line-animated {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: drawLine 2s ease forwards;
+        }
+
+        .point {
+            transition: all 0.3s ease;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        .point:hover {
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
+        }
+
+        .bar {
+            transition: all 0.3s ease;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        .bar:hover {
+            transform: scaleY(0.96);
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
+        }
+
+        .dropdown-container label {
+            margin-top: 0.5rem;
+            font-size: 1.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Analyzing Top Performing Teams by Category</h1>
+        <div class="dropdown-container">
+            <label for="category-dropdown">Choose Category:</label>
+            <select id="categorySelect" class="dropdown">
+                <option value="all">All Categories</option>
+                <option value="Male">Male Teams</option>
+                <option value="Female">Female Teams</option>
+                <option value="Mixed">Mixed Teams</option>
+            </select>
+        </div>
+        <div class="dropdown-container">
+            <label for="chart-type-dropdown">Choose Chart Type:</label>
+            <select id="chartTypeSelect" class="dropdown">
+                <option value="line">Line Chart</option>
+                <option value="bar">Bar Chart</option>
+            </select>
+        </div>
+        <div id="visualization"></div>
+    </div>
+
+    <script>
+        // Set dimensions and margins
+        const margin = { top: 40, right: 60, bottom: 60, left: 80 };
+        const width = 800 - margin.left - margin.right;
+        const height = 400 - margin.top - margin.bottom;
+
+        // Create SVG container
+        const svg = d3.select("#visualization")
+            .append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        // Tooltip
+        const tooltip = d3.select("body")
+            .append("div")
+            .attr("class", "tooltip");
+
+        // Color scale
+        const colorScale = d3.scaleOrdinal()
+            .domain(['Male', 'Female', 'Mixed'])
+            .range(['#2196F3', '#E91E63', '#4CAF50']);
+
+        // Function to determine category
+        function getMainCategory(category) {
+            if (category.includes('M') && !category.includes('X')) return 'Male';
+            if (category.includes('F')) return 'Female';
+            if (category.includes('X')) return 'Mixed';
+            return 'Other';
+        }
+
+        // Function to get the best performing team for each category per year
+        function getBestTeams(data) {
+            const bestTeams = [];
+
+            // Group data by year
+            const years = d3.groups(data, d => d.Year);
+
+            years.forEach(yearData => {
+                const year = yearData[0];
+                const teams = yearData[1];
+
+                // Group teams by category
+                const categories = d3.groups(teams, d => getMainCategory(d.Category));
+
+                categories.forEach(categoryData => {
+                    const category = categoryData[0];
+                    const categoryTeams = categoryData[1];
+
+                    // Find the best team in this category for this year
+                    const bestTeam = categoryTeams.reduce((best, current) => {
+                        return (+current.Position < +best.Position) ? current : best;
+                    });
+
+                    bestTeams.push(bestTeam);
+                });
+            });
+
+            return bestTeams;
+        }
+
+        // Function to update visualization based on chart type
+        function updateVisualization(data, selectedCategory, chartType) {
+            let filteredData = data;
+            if (selectedCategory !== 'all') {
+                filteredData = filteredData.filter(d => getMainCategory(d.Category) === selectedCategory);
+            }
+
+            // Get only the best teams
+            filteredData = getBestTeams(filteredData);
+
+            // Define scales
+            const xScale = d3.scaleBand()
+            .domain([2015, 2018, 2019, 2022, 2023, 2024]) // Only the desired years
+            .range([0, width])
+            .padding(0); // Remove any padding to ensure no gaps
+
+
+            const yScale = d3.scaleLinear()
+                .domain([d3.max(filteredData, d => +d.Position) + 5, 1]) // Inverted for rankings
+                .range([height, 0]);
+
+            // Clear previous elements
+            svg.selectAll("*").remove();
+
+            const xAxis = d3.axisBottom(xScale)
+            .tickValues([2015, 2018, 2019, 2022, 2023, 2024]) // Specify only these years for the x-axis
+            .tickFormat(d => d); // Just display the year
+
+
+            // X Axis
+            svg.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(xAxis)
+                .attr("color", "white");
+
+            // Y Axis
+            svg.append("g")
+                .call(d3.axisLeft(yScale))
+                .attr("color", "white");
+
+            // Group data by category
+            const groupedData = d3.groups(filteredData, d => getMainCategory(d.Category));
+
+            if (chartType === "line") {
+                // Line generator
+                const line = d3.line()
+                    .x(d => xScale(+d.Year)+55)
+                    .y(d => yScale(+d.Position))
+                    .curve(d3.curveLinear);
+
+                // Draw lines for each category
+                groupedData.forEach(([category, values]) => {
+                    svg.append("path")
+                        .datum(values)
+                        .attr("class", "line line-animated")
+                        .attr("fill", "none")
+                        .attr("stroke", colorScale(category))
+                        .attr("stroke-width", 3)
+                        .attr("d", line);
+                });
+
+                // Add data points for line chart
+                svg.selectAll(".point")
+                    .data(filteredData)
+                    .enter().append("circle")
+                    .attr("class", "point")
+                    .attr("cx", d => xScale(+d.Year)+55)
+                    .attr("cy", d => yScale(+d.Position))
+                    .attr("r", 5)
+                    .style("fill", d => colorScale(getMainCategory(d.Category)))
+                    .on("mouseover", function (event, d) {
+                        d3.select(this)
+                            .transition()
+                            .duration(200)
+                            .attr("r", 8);
+
+                        tooltip.transition()
+                            .duration(200)
+                            .style("opacity", 1);
+                        tooltip.html(
+                            `Year: ${d.Year}<br>` +
+                            `Rank: ${d.Position}<br>` +
+                            `Team: ${d['Team Name']}<br>` +
+                            `Category: ${d.Category}<br>` +
+                            `Time: ${d['Time M:S']}`
+                        )
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function () {
+                        d3.select(this)
+                            .transition()
+                            .duration(200)
+                            .attr("r", 5);
+
+                        tooltip.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    });
+            } else if (chartType === "bar") {
+                const groupedByYear = d3.groups(filteredData, d => +d.Year);
+
+                // Ensure consistent order of categories (Male, Female, Mixed)
+                const categoryOrder = ['Male', 'Female', 'Mixed']; 
+                let barWidth=0;
+                if(selectedCategory==='all') barWidth = 0.8*width / (groupedByYear.length * categoryOrder.length); // 3 bars per year
+                else barWidth = width / (groupedByYear.length * categoryOrder.length);
+
+                groupedByYear.forEach(([year, values], yearIndex) => {
+                    const xOffset = xScale(year)*1.02; // Position of bars for each year
+                    
+                    if (selectedCategory === "all") {
+                        // Loop through each category (Male, Female, Mixed)
+                        categoryOrder.forEach((category, index) => {
+                            const team = values.find(d => getMainCategory(d.Category) === category);
+                            if (team) {
+                                // Calculate x position for each bar within the year
+                                const barX = xOffset + index * barWidth;
+
+                                svg.append("rect")
+                                    .attr("class", "bar")
+                                    .attr("x", barX+4)
+                                    .attr("y", yScale(+team.Position))
+                                    .attr("width", barWidth)  // Add small space between bars
+                                    .attr("height", height - yScale(+team.Position))
+                                    .attr("fill", colorScale(category))
+                                    .on("mouseover", function (event, d) {
+                                        d3.select(this)
+                                            .transition()
+                                            .duration(200)
+                                            .attr("opacity", 0.7);
+
+                                        tooltip.transition()
+                                            .duration(200)
+                                            .style("opacity", 1);
+                                        tooltip.html(
+                                            `Year: ${team.Year}<br>` +
+                                            `Rank: ${team.Position}<br>` +
+                                            `Team: ${team['Team Name']}<br>` +
+                                            `Category: ${team.Category}<br>` +
+                                            `Time: ${team['Time M:S']}`
+                                        )
+                                        .style("left", (event.pageX + 10) + "px")
+                                        .style("top", (event.pageY - 28) + "px");
+                                    })
+                                    .on("mouseout", function () {
+                                        d3.select(this)
+                                            .transition()
+                                            .duration(200)
+                                            .attr("opacity", 1);
+
+                                        tooltip.transition()
+                                            .duration(500)
+                                            .style("opacity", 0);
+                                    });
+                            }
+                        });
+                    } else {
+                        // Display a single bar per year for the selected category
+                        const team = values.find(d => getMainCategory(d.Category) === selectedCategory);
+                        if (team) {
+                            svg.append("rect")
+                                .attr("class", "bar")
+                                .attr("x", xOffset + barWidth)
+                                .attr("y", yScale(+team.Position))
+                                .attr("width", barWidth - 4) // Small space between bars
+                                .attr("height", height - yScale(+team.Position))
+                                .attr("fill", colorScale(selectedCategory))
+                                .on("mouseover", function (event, d) {
+                                    d3.select(this)
+                                        .transition()
+                                        .duration(200)
+                                        .attr("opacity", 0.7);
+
+                                    tooltip.transition()
+                                        .duration(200)
+                                        .style("opacity", 1);
+                                    tooltip.html(
+                                        `Year: ${team.Year}<br>` +
+                                        `Rank: ${team.Position}<br>` +
+                                        `Team: ${team['Team Name']}<br>` +
+                                        `Category: ${team.Category}<br>` +
+                                        `Time: ${team['Time M:S']}`
+                                    )
+                                    .style("left", (event.pageX + 10) + "px")
+                                    .style("top", (event.pageY - 28) + "px");
+                                })
+                                .on("mouseout", function () {
+                                    d3.select(this)
+                                        .transition()
+                                        .duration(200)
+                                        .attr("opacity", 1);
+
+                                    tooltip.transition()
+                                        .duration(500)
+                                        .style("opacity", 0);
+                                });
+                        }
+                    }
+                });
+            }
+
+
+            // Labels
+            svg.append("text")
+                .attr("class", "x-label")
+                .attr("text-anchor", "middle")
+                .attr("x", width / 2)
+                .attr("y", height + 40)
+                .attr("fill", "white")
+                .text("Year");
+
+            svg.append("text")
+                .attr("class", "y-label")
+                .attr("text-anchor", "middle")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -60)
+                .attr("x", -height / 2)
+                .attr("fill", "white")
+                .text("Rank");
+        }
+
+        // Function to update category and chart type
+        function updateChart() {
+            const selectedCategory = document.getElementById("categorySelect").value;
+            const selectedChartType = document.getElementById("chartTypeSelect").value;
+            updateVisualization(window.csvData, selectedCategory, selectedChartType);
+        }
+
+        // Load data
+        d3.csv("from2015.csv").then(function (data) {
+            window.csvData = data;
+            updateChart();
+        }).catch(function (error) {
+            console.error("Error loading CSV:", error);
+        });
+
+        // Event listeners for dropdowns
+        document.getElementById("categorySelect").addEventListener("change", updateChart);
+        document.getElementById("chartTypeSelect").addEventListener("change", updateChart);
+    </script>
+</body>
+</html>

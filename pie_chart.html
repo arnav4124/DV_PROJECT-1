@@ -121,6 +121,148 @@
         width: 100%; 
         height: 500px;
     }
+    .legend {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        padding: 1.5rem;
+        background: var(--surface);
+        border-radius: 15px;
+        margin-top: 2rem;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        padding: 0.7rem;
+        border-radius: 8px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .legend-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+
+      .legend-color {
+        width: 24px;
+        height: 24px;
+        margin-right: 12px;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+      }
+
+      .legend-item:hover .legend-color {
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+
+      text {
+        fill: var(--text);
+        font-size: 12px;
+        font-weight: 500;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .labels-container {
+        margin-top: 2rem;
+        background: rgba(10, 10, 31, 0.95);
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all 0.3s ease;
+      }
+
+      .labels-header {
+        padding: 1rem 1.5rem;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .labels-header:hover {
+        background: linear-gradient(135deg, var(--secondary), var(--primary));
+      }
+
+      .labels-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.5s cubic-bezier(0, 1, 0, 1);
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+        padding: 0 1.5rem;
+      }
+
+      .labels-content.open {
+        max-height: 2000px;
+        padding: 1.5rem;
+        transition: max-height 1s ease-in-out;
+      }
+
+      .label-item {
+        display: flex;
+        align-items: center;
+        padding: 0.8rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        transition: all 0.3s ease;
+      }
+
+      .label-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-2px);
+      }
+
+      .label-code {
+        color: var(--primary);
+        font-weight: bold;
+        margin-right: 1rem;
+        min-width: 45px;
+      }
+
+      .label-full {
+        color: var(--text);
+      }
+
+      .toggle-icon {
+        transition: transform 0.3s ease;
+      }
+
+      .toggle-icon.open {
+        transform: rotate(180deg);
+      }
+      @keyframes sliceEntrance {
+        0% {
+            transform: scale(0);
+            opacity: 0;
+        }
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .pie-slice {
+        animation: sliceEntrance 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        transform-origin: center;
+        opacity: 0;
+    }
+
+    .pie-slice:nth-child(1) { animation-delay: 0.1s; }
+    .pie-slice:nth-child(2) { animation-delay: 0.2s; }
+    .pie-slice:nth-child(3) { animation-delay: 0.3s; }
+    .pie-slice:nth-child(4) { animation-delay: 0.4s; }
+    .pie-slice:nth-child(5) { animation-delay: 0.5s; }
+    .pie-slice:nth-child(6) { animation-delay: 0.6s; }
+
 </style>
 </head>
 <body>
@@ -130,7 +272,9 @@
     <div id="pie-chart" class="chart"></div>
     <div id="pie-chart-legend" class="legend-container"></div>
 </div>
-
+<div class="labels-content" id="labelsContent">
+    <!-- Labels will be inserted here by JavaScript -->
+</div>
 <div id="tooltip"></div>
 
 <script>
@@ -160,6 +304,7 @@ d3.csv('from2015.csv').then(rawData => {
         .enter()
         .append("path")
         .attr("d", arc)
+        .attr("class", "pie-slice")
         .attr("fill", d => pieColor(d.data.category))
         .attr("stroke", "white")
         .style("stroke-width", "2px")
@@ -181,7 +326,57 @@ d3.csv('from2015.csv').then(rawData => {
             d3.select(event.currentTarget).style("opacity", 0.8).style("filter", "none");
             d3.select("#tooltip").classed("visible", false);
         });
-    
+        const fullLabels = {
+        Mfc: "Male Fast Competitive",
+        Mf: "Male Fast",
+        Xf: "Mixed Fast",
+        Mjf: "Junior Male Fast",
+        Me: "Male Entertaining",
+        Ffc: "Female Fast Competitive",
+        Ff: "Female Fast",
+        Mne: "Male New Entertaining",
+        Xe: "Mixed Entertaining",
+        Xfc: "Mixed Fast Competitive",
+        Fes: "Female Entertaining Skilled",
+        Xne: "Mixed New Entertaining",
+        Fnfc: "Female New Fast Competitive",
+        Xnf: "Mixed New Fast",
+        Mnf: "Male New Fast",
+        MnA: "Male New Advanced",
+        Xnjf: "Mixed New Junior Fast",
+        MA: "Male Advanced",
+        Mje: "Junior Male Entertaining",
+        Xje: "Junior Mixed Entertaining",
+        Xjf: "Junior Mixed Fast",
+        Fjf: "Junior Female Fast",
+        Xnfc: "Mixed New Fast Competitive",
+        XA: "Mixed Advanced",
+        Fnf: "Female New Fast",
+        Fne: "Female New Entertaining",
+        Xjnf: "Junior Mixed New Fast",
+        Mjne: "Junior Male New Entertaining",
+        Xjfc: "Junior Mixed Fast Competitive",
+        Xec: "Mixed Entertaining Competitive",
+      };
+
+      const labelsContent = document.getElementById("labelsContent");
+
+      Object.entries(fullLabels).forEach(([code, full]) => {
+        const labelItem = document.createElement("div");
+        labelItem.className = "label-item";
+        labelItem.innerHTML = `
+            <span class="label-code">${code}</span>
+            <span class="label-full">${full}</span>
+        `;
+        labelsContent.appendChild(labelItem);
+      });
+
+      function toggleLabels() {
+        const content = document.getElementById("labelsContent");
+        const icon = document.querySelector(".toggle-icon");
+        content.classList.toggle("open");
+        icon.classList.toggle("open");
+      }
     // Pie Chart Legend
     const pieLegend = d3.select("#pie-chart-legend")
         .append("div")
