@@ -257,7 +257,7 @@ d3.csv('from2015.csv').then(rawData => {
         .y0(d => streamY(d[0]))
         .y1(d => streamY(d[1]));
     
-        streamSvg.selectAll("path")
+    streamSvg.selectAll("path")
     .data(streamLayers)
     .enter().append("path")
     .attr("d", area)
@@ -286,6 +286,27 @@ d3.csv('from2015.csv').then(rawData => {
     streamSvg.append("g")
         .attr("transform", `translate(0,${streamHeight})`)
         .call(d3.axisBottom(streamX));
+
+        streamSvg.append("text")
+        .attr("x", streamWidth / 2)
+        .attr("y", streamHeight + streamMargin.bottom - 10)
+        .style("text-anchor", "middle")
+        .style("fill", "white")
+        .text("Year");
+    
+    // Y Axis
+    streamSvg.append("g")
+        .call(d3.axisLeft(streamY));
+    
+    // Y Axis Label
+    streamSvg.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 0 - streamMargin.left)
+        .attr("x", 0 - (streamHeight / 2))
+        .attr("dy", "1em")
+        .style("text-anchor", "middle")
+        .style("fill", "white")
+        .text("Team Category Participation(Frequency)");
     
     // Stream Graph Legend
     const streamLegend = d3.select("#stream-graph-legend")

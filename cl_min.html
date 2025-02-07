@@ -27,29 +27,23 @@
         }
 
         .trophy-icon {
-            color: #FFD700; /* Gold color for the trophy */
+            color: #FFD700;
             font-size: 2rem;
             margin: 0 10px;
             animation: bounce 2s infinite;
         }
 
         @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% {
-                transform: translateY(0);
-            }
-            40% {
-                transform: translateY(-20px);
-            }
-            60% {
-                transform: translateY(-10px);
-            }
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-20px); }
+            60% { transform: translateY(-10px); }
         }
 
         #chart {
             background: white;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            padding: 80px;
+            padding: 10px;
         }
 
         .line {
@@ -92,16 +86,18 @@
             font-size: 12px;
         }
 
-        /* Style for the legend */
+        /* Updated Legend Styles */
         .legend {
             font-size: 14px;
             display: flex;
-            justify-content: center;
-            margin-top: 20px;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+            width: 100%;
+            padding-right: 50px;
         }
 
         .legend-item {
-            margin-right: 20px;
+            margin-left: 20px;
             display: flex;
             align-items: center;
         }
@@ -117,10 +113,8 @@
     <h1>
         <i class="fas fa-trophy trophy-icon"></i> Race Completion Time Trends (2003 - 2024) <i class="fas fa-trophy trophy-icon"></i>
     </h1>
-    <div id="chart"></div>
-    <div id="tooltip" class="tooltip"></div>
-
-    <!-- Legend Section -->
+    
+    <!-- Legend Section Moved Above Chart -->
     <div class="legend">
         <div class="legend-item">
             <div class="legend-color-box" style="background-color: #4CAF50;"></div>
@@ -135,10 +129,13 @@
             <span>Avg Time</span>
         </div>
     </div>
+    
+    <div id="chart"></div>
+    <div id="tooltip" class="tooltip"></div>
 
     <script>
         // Set dimensions and margins
-        const margin = {top: 50, right: 50, bottom: 50, left: 80};
+        const margin = {top: 80, right: 50, bottom: 80, left: 80};
         const width = 1200 - margin.left - margin.right;
         const height = 700 - margin.top - margin.bottom;
 
@@ -155,6 +152,35 @@
 
         // Load data
         d3.csv("year_time.csv").then(data => {
+            d3.select(".legend").remove();
+
+// Add legend inside the plot
+const legend = svg.append("g")
+    .attr("transform", `translate(${width - 200}, -40)`);
+
+const legendData = [
+    {color: "#4CAF50", label: "Min Time"},
+    {color: "#FF5722", label: "Max Time"},
+    {color: "#2196F3", label: "Avg Time"}
+];
+
+const legendItems = legend.selectAll(".legend-item")
+    .data(legendData)
+    .enter()
+    .append("g")
+    .attr("class", "legend-item")
+    .attr("transform", (d, i) => `translate(199, ${i * 25})`);
+
+legendItems.append("rect")
+    .attr("width", 20)
+    .attr("height", 10)
+    .attr("fill", d => d.color);
+
+legendItems.append("text")
+    .attr("x", 25)
+    .attr("y", 10)
+    .attr("font-size", "12px")
+    .text(d => d.label);
             // Custom function to convert time string to seconds
             const timeToSeconds = (timeStr) => {
                 const [minutes, seconds] = timeStr.split(':').map(parseFloat);
@@ -230,13 +256,28 @@
             drawLine(lineMax, "max-line");
             drawLine(lineAvg, "avg-line");
 
-            // Axes
+            // X Axis with label
             svg.append("g")
                 .attr("transform", `translate(0,${height})`)
-                .call(d3.axisBottom(xScale).tickFormat(d3.format("d")));
+                .call(d3.axisBottom(xScale).tickFormat(d3.format("d")))
+                .append("text")
+                .attr("x", width / 2)
+                .attr("y", margin.bottom - 10)
+                .attr("fill", "black")
+                .style("text-anchor", "middle")
+                .text("Year");
 
+            // Y Axis with label
             svg.append("g")
-                .call(d3.axisLeft(yScale).tickFormat(formatTime));
+                .call(d3.axisLeft(yScale).tickFormat(formatTime))
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 0 - margin.left)
+                .attr("x", 0 - (height / 2))
+                .attr("dy", "1em")
+                .attr("fill", "black")
+                .style("text-anchor", "middle")
+                .text("Race Completion Time (MM:SS)");
 
             // Dots with tooltip
             const addDots = (data, className, color) => {
